@@ -1,0 +1,26 @@
+{
+	"name": "track_js",
+	"description": "Tracking people",
+	"version": "0.0.1",
+	"author": {
+	"name": "Anatoly Mozgov",
+		"email": "anatoly.mozgov@gmail.com"
+	},
+	"dependencies": {
+		"connect": "3.5.0",
+		"serve-static": "1.11.2",
+		"body-parser": "1.16.1",
+		"querystring": "0.2.0"
+	},
+	"engines": {
+		"node": ">= 0.10.0"
+	},
+	"files": [
+		"app.js",
+		"static/"
+	],
+	"scripts": { 
+		"start": "node app.js" 
+	},
+	"license": "BSD-3-Clause"
+}

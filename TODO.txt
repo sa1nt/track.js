@@ -1,0 +1,14 @@
+TODO: 
+Apparently, we'd better use OpenLayers https://openlayersbook.github.io/ch10-openlayers-goes-mobile/example-04.html
+
+1. index.html: create basic HTML to show a Map
+2. Node: create server-side to:
+		hold a Dict of users and their current locations
+		accept user's current location
+		return the Dict of locations
+3. index.html: create JS part to:
+		send current location to server
+		expect receiving the Dict of users locations
+		show the Dict on the Map
+			Use custom symbols: https://developers.google.com/maps/documentation/javascript/symbols
+4. 
