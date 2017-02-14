@@ -53,57 +53,35 @@ app.use('/location', function(request, response){
 		response.end('OK\n');
 	}
 	if (request.method === "POST") {
-		if(request.body.name && request.body.latitude && request.body.longtitude) { 
-			var userKey = request.body.name;
-
+		// react only if field 'name' exists in request and isn't empty
+		if (request.body.name && request.body.uuid) {
 			var result = Object.assign({}, userLocations);
-			delete result[userKey];
+			// if a request contains location info, then update userLocations Map 
+			//	and exclude this user's info from response
+			// otherwise, return location info for all users
+			if(request.body.latitude && request.body.longtitude) { 
+				var userKey = request.body.uuid;
+				userLocations[userKey] = {
+					'name': request.body.name,
+					'latitude': request.body.latitude,
+					'longtitude': request.body.longtitude
+				};
 
-			userLocations[userKey] = {
-				'latitude': request.body.latitude,
-				'longtitude': request.body.longtitude
-			};
-
+				delete result[userKey];
+			}
 			console.log(result);
 			response.writeHead(200, {
 		      "Content-Type": "application/json"
-    		});
+			});
 			response.end(JSON.stringify(result));
 		}
-/*
-		var requestBody = '';
-		request.on('data', function(data) {
-			requestBody += data;
-			if(requestBody.length > 1e7) {
-				response.writeHead(413, 'Request Entity Too Large', {'Content-Type': 'text/html'});
-				response.end('<!doctype html><html><head><title>413</title></head><body>413: Request Entity Too Large</body></html>');
-			}
-		});
-*/
   	}
 });
 
 
-var staticPath = '/static'; 
+var staticPath = '/'; 
 app.use(staticPath, serveStatic(__dirname + staticPath)); 
 
 http.createServer(app).listen(port);
 
 console.log('Server running on ' + port );
-
-/*
-var http = require("http");
-
-http.createServer(function (request, response) {
-   // Send the HTTP header 
-   // HTTP Status: 200 : OK
-   // Content Type: text/plain
-   response.writeHead(200, {'Content-Type': 'text/plain'});
-   
-   // Send the response body as "Hello World"
-   response.end('Hello World\n');
-}).listen(8081);
-
-// Console will print the message
-console.log('Server running at http://127.0.0.1:8081/');
-*/

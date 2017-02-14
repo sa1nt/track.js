@@ -1,0 +1,209 @@
+<!doctype html>
+<html>
+  <head>
+    <title>Map Examples</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.0.0/ol.css" type="text/css"> -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.0.0/ol-debug.css" type="text/css">
+    <link rel="stylesheet" href="./samples.css" type="text/css" />
+    <!-- font-awesome is an iconic font, which means we can draw resolution-independent icons -->
+<!--    <link href="//netdna.bootstrapcdn.com/font-awesome/3.2.1/css/font-awesome.css" rel="stylesheet"> -->
+    <style type="text/css">
+      #info {
+          position: absolute;
+          font-size: 0.7em;
+          top: 10px;
+          right: 10px;
+          background-color: lightgrey;
+          padding: 4px;
+      }    
+    </style>
+  </head>
+  <body>
+    <div id="name-input-container" class="info">
+        <label for="name-input">Name:</label>
+        <input type="text" id="name-input" name="user_name" value="Enter your name">
+        <button type="button" id="name-button">OK</button>
+    </div>
+
+    <div id="map" class="full-map"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.0.0/ol-debug.js" type="text/javascript"></script>
+    <script>
+      var osmTileLayer = new ol.layer.Tile({
+        source: new ol.source.OSM()
+      });
+
+//      var london = ol.proj.transform([-0.12755, 51.507222], 'EPSG:4326', 'EPSG:3857');
+      var view = new ol.View({
+        center: ol.proj.transform([24.090224, 56.951646], 'EPSG:4326', 'EPSG:3857'), // Riga
+        zoom: 14,
+        enableRotation: false
+      });
+
+      // features here will eventuall contain points for current and other users
+      var positionLayerSource = new ol.source.Vector({
+        features: []
+      });
+
+      var positionLayer = new ol.layer.Vector({
+        source: positionLayerSource
+      });
+
+      var map = new ol.Map({
+        target: 'map',
+        layers: [
+          osmTileLayer, 
+          positionLayer
+        ],
+        view: view
+      });
+
+      // create a Geolocation object setup to track the position of the device
+      var geolocation = new ol.Geolocation({
+//        tracking: true,
+        projection: view.getProjection()
+      });
+
+      // bind the projection to the view so that positions are reported in the
+      // projection of the view
+      //  TODO: investigate whether this is needed
+      geolocation.on('change:projection', view);
+
+      // once we have a position for the first time, center the map on it
+      geolocation.once('change:position', function() {
+        var position = geolocation.getPosition();
+        view.setCenter(position);
+
+        update_point_location(ownUuid, position);
+      });
+
+      // when the GeoLocation API provides a position update, move the point to new position
+      geolocation.on('change:position', function() {
+        var position = geolocation.getPosition();
+        console.log('Your location: ', position);
+        update_point_location(ownUuid, position);
+        send_location(ownUuid, position);
+      });
+    </script>
+
+    <script type="text/javascript">
+      var colours = [
+        '#3399CC',
+        '#f44242',  //red
+        '#f4b942',  //orange
+        '#f4fc00',  //yellow
+        '#8ffc00',  //green
+        '#00fc7e',  //green-blue
+        '#00fcda',  //blue-green
+        '#00acfc',  //blue
+        '#b900fc',  //violet
+        '#fc00b0',  //pink
+      ];
+      
+      var ownUuid = guid(); 
+
+      var userLocations = {};
+
+      var defaultStroke = new ol.style.Stroke({
+        color: '#fff',
+        width: 2
+      });
+
+      function create_point_feature(userUuid, userName, is_self) {
+        var color = is_self ? colours[0] : colours[Math.floor(Math.random() * (colours.length)) + 1];
+
+        var userPositionFeature = new ol.Feature();
+        userPositionFeature.setStyle(new ol.style.Style({
+          image: new ol.style.Circle({
+            radius: 6,
+            fill: new ol.style.Fill({
+              color: color
+            }),
+            stroke: defaultStroke
+          }),
+          text: new ol.style.Text({
+            font: '14px sans-serif',
+            offsetY: 10,
+            text: userName
+          })
+        }));
+
+        positionLayerSource.addFeature(userPositionFeature);
+        userLocations[userUuid] = {
+          'name': userName,
+          'positionFeature': userPositionFeature
+        }
+
+        return userPositionFeature;
+      }
+
+      function update_point_location(userUuid, coords) {
+        var userLocationObject = userLocations[userUuid];
+        var locationFeature = userLocationObject['positionFeature'];
+        locationFeature.setGeometry(new ol.geom.Point(coords));
+      }
+
+      function server_response_handler(otherUserLocations) {
+        for (var otherUuid in otherUserLocations) {
+          if (!otherUserLocations.hasOwnProperty(otherUuid)) {
+              //The current property is not a direct property of p
+              continue;
+          }
+          var otherUserData = otherUserLocations[otherUuid];
+          console.log(otherUuid, otherUserData);
+
+          if (!userLocations[otherUuid]) {
+            var userPositionFeature = create_point_feature(otherUuid, otherUserData['name'], false);
+          }
+
+          update_point_location(otherUuid, [otherUserData.latitude, otherUserData.longtitude]);
+        }
+      }
+
+      function send_location(ownUuid, ol_position) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', '../location');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+  //          var userInfo = JSON.parse(xhr.responseText);
+            console.log(xhr.responseText);
+            var otherUserLocations = JSON.parse(xhr.responseText);
+
+            server_response_handler(otherUserLocations);
+          }
+        };
+
+        xhr.send(JSON.stringify({
+          'uuid': ownUuid,
+          'name': userLocations[ownUuid]['name'],
+          'latitude': ol_position[0],
+          'longtitude': ol_position[1]
+        }));
+      }
+
+      function guid() {
+        return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
+      }
+
+      function s4() {
+        return Math.floor((1 + Math.random()) * 0x10000)
+          .toString(16)
+          .substring(1);
+      }      
+    </script>
+    <script type="text/javascript">
+      var nameBtn = document.getElementById('name-button');
+      nameBtn.addEventListener('click', function() {
+        var name = document.getElementById('name-input').value;
+
+        geolocation.setTracking(true);
+        create_point_feature(ownUuid, name, true);
+
+        nameBtn.disabled = 'disabled';
+        document.getElementById('name-input-container').style.display = 'none';
+      }, false);
+    </script>
+  </body>
+</html>
