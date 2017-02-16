@@ -6,6 +6,7 @@
 	"name": "Anatoly Mozgov",
 		"email": "anatoly.mozgov@gmail.com"
 	},
+	"main": "app.js",
 	"dependencies": {
 		"connect": "3.5.0",
 		"serve-static": "1.11.2",
@@ -13,7 +14,7 @@
 		"querystring": "0.2.0"
 	},
 	"engines": {
-		"node": ">= 0.10.0"
+		"node": ">= 5.0.0"
 	},
 	"files": [
 		"app.js",
@@ -22,5 +23,9 @@
 	"scripts": { 
 		"start": "node app.js" 
 	},
-	"license": "BSD-3-Clause"
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/sa1nt/track.js"
+	},
+  	"license": "BSD-3-Clause"	
 }

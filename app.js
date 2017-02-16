@@ -24,8 +24,6 @@ var url = require('url');
 var qs = require('querystring');
 var http = require('http');
 
-const port = 8081;
-
 // __dirname <String> -- The directory name of the current module. 
 var app = connect();
 
@@ -81,6 +79,9 @@ app.use('/location', function(request, response){
 
 var staticPath = '/'; 
 app.use(staticPath, serveStatic(__dirname + staticPath)); 
+
+// take PORT env var if available. Default to 8081 otherwise
+const port = process.env.PORT ? process.env.PORT : 8081;
 
 http.createServer(app).listen(port);
 
