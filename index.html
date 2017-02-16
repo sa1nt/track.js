@@ -1,7 +1,7 @@
 <!doctype html>
 <html>
   <head>
-    <title>Map Examples</title>
+    <title>track.js</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <!--    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/3.0.0/ol.css" type="text/css"> -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/ol3/4.0.0/ol-debug.css" type="text/css">
@@ -20,11 +20,15 @@
     </style>
   </head>
   <body>
-    <div id="name-input-container" class="info">
+    <form id="name-input-form" class="info">
+      <div>
         <label for="name-input">Name:</label>
-        <input type="text" id="name-input" name="user_name" value="Enter your name">
-        <button type="button" id="name-button">OK</button>
-    </div>
+        <input type="text" id="name-input" name="user_name" placeholder="Enter your name" autofocus>
+      </div>
+      <div class="button">
+        <button type="submit" id="name-button">OK</button>
+      </div>
+    </form>
 
     <div id="map" class="full-map"></div>
 
@@ -85,6 +89,16 @@
         update_point_location(ownUuid, position);
         send_location(ownUuid, position);
       });
+
+      geolocation.on('error', function(error) {
+        console.log("Geolocation feature returned an error", error);
+      });
+
+      // A second after the page has finished loading, fetch other users locations 
+      window.onload = function() {
+        setTimeout(get_other_locations, 1000);
+      };
+
     </script>
 
     <script type="text/javascript">
@@ -144,10 +158,11 @@
         locationFeature.setGeometry(new ol.geom.Point(coords));
       }
 
-      function server_response_handler(otherUserLocations) {
+      function update_other_user_locations_on_map(otherUserLocations) {
         for (var otherUuid in otherUserLocations) {
-          if (!otherUserLocations.hasOwnProperty(otherUuid)) {
+          if ((!otherUserLocations.hasOwnProperty(otherUuid)) || otherUuid === ownUuid) {
               //The current property is not a direct property of p
+              //Also skip our own UUID
               continue;
           }
           var otherUserData = otherUserLocations[otherUuid];
@@ -161,17 +176,30 @@
         }
       }
 
-      function send_location(ownUuid, ol_position) {
+      function get_other_locations() {
         var xhr = new XMLHttpRequest();
-        xhr.open('POST', '../location');
+        xhr.open('GET', './location');
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.onload = function() {
           if (xhr.status === 200) {
-  //          var userInfo = JSON.parse(xhr.responseText);
             console.log(xhr.responseText);
             var otherUserLocations = JSON.parse(xhr.responseText);
 
-            server_response_handler(otherUserLocations);
+            update_other_user_locations_on_map(otherUserLocations);
+          }
+          // Call self after 1.5 seconds
+          setTimeout(get_other_locations, 1500);
+        };
+        xhr.send();
+      }
+
+      function send_location(ownUuid, ol_position) {
+        var xhr = new XMLHttpRequest();
+        xhr.open('POST', './location');
+        xhr.setRequestHeader('Content-Type', 'application/json');
+        xhr.onload = function() {
+          if (xhr.status === 200) {
+            console.log(xhr.responseText);
           }
         };
 
@@ -194,16 +222,21 @@
       }      
     </script>
     <script type="text/javascript">
-      var nameBtn = document.getElementById('name-button');
-      nameBtn.addEventListener('click', function() {
+      var nameForm = document.getElementById('name-input-form');
+      nameForm.addEventListener('submit', function(e) {
+        // Prevent actual submission of the form as a GET
+        e.preventDefault();
+
         var name = document.getElementById('name-input').value;
 
         geolocation.setTracking(true);
         create_point_feature(ownUuid, name, true);
 
-        nameBtn.disabled = 'disabled';
-        document.getElementById('name-input-container').style.display = 'none';
+        nameForm.disabled = 'disabled';
+        document.getElementById('name-input-form').style.display = 'none';
       }, false);
+
+
     </script>
   </body>
 </html>
