@@ -22,3 +22,5 @@ Server running on 5000
 ```
 
 Then you can visit `localhost:5000` in your browser to verify.
+
+This app is connected to [Heroku](https://heroku.com). You can visit the latest deployed version at https://track-js.herokuapp.com.
