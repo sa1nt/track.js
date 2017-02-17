@@ -35,20 +35,18 @@ app.use('/location/clear', function(request, response){
 		response.writeHead(200, {'Content-Type': 'text/plain'});
 
 		var url_parts = url.parse(request.url, true);
-        console.log('GET /clear request. Query: ', url_parts.query);
-        // GET to /location/clear&uuid={uuid}
-        //	will delete user with {uuid} from memory
-        // GET to /location/clear 
-    	//	will delete all users from memory
-        if (url_parts.query.clear !== undefined) {
-        	if (url_parts.query.uuid) {
-        		response.write('Deleted user ' + url_parts.query.uuid + '\n');
-        		delete userLocations[url_parts.query.uuid];
-        	} else {
-        		response.write('Deleted all ' + Object.keys(userLocations).length + '\n');
-	        	userLocations = {};
-	        }
-        }
+		console.log('GET /clear request. Query: ', url_parts.query);
+		// GET to /location/clear&uuid={uuid}
+		//	will delete user with {uuid} from memory
+		// GET to /location/clear 
+		//	will delete all users from memory
+		if (url_parts.query.uuid) {
+			response.write('Deleted user ' + url_parts.query.uuid + '\n');
+			delete userLocations[url_parts.query.uuid];
+		} else {
+			response.write('Deleted all ' + Object.keys(userLocations).length + '\n');
+			userLocations = {};
+		}
 
 		// Send the response body as "Hello World"
 		response.end('OK\n');
@@ -56,30 +54,29 @@ app.use('/location/clear', function(request, response){
 });
 app.use('/location', function(request, response) {
 	if (request.method === "GET") {
-		var result = Object.assign({}, userLocations);
-		console.log('GET /location request');
+//		console.log('GET /location request');
 		response.writeHead(200, {
 			"Content-Type": "application/json"
 		});
-		response.end(JSON.stringify(result));
+		response.end(JSON.stringify(userLocations));
 	}
 	if (request.method === "POST") {
 		console.log('POST /location request. Body: ', request.body);
-		// react only if field 'name' exists in request and isn't empty
-		if (request.body.name && request.body.uuid) {
+		if (request.body.name && request.body.uuid && request.body.latitude && request.body.longtitude) {
 			// if a request contains location info, then update userLocations Map 
-			if(request.body.latitude && request.body.longtitude) { 
-				var userKey = request.body.uuid;
-				userLocations[userKey] = {
-					'name': request.body.name,
-					'latitude': request.body.latitude,
-					'longtitude': request.body.longtitude
-				};
-			}
+			var userKey = request.body.uuid;
+			userLocations[userKey] = {
+				'name': request.body.name,
+				'latitude': request.body.latitude,
+				'longtitude': request.body.longtitude
+			};
 			response.writeHead(200, {'Content-Type': 'text/plain'});
 			response.end('OK\n');
+		} else {
+			response.write(400);
+			response.end('POST /location request should be a JSON with "name", "uuid", "latitude" and "longtitude" elements');
 		}
-  	}
+	}
 });
 
 

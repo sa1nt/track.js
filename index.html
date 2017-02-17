@@ -83,6 +83,7 @@
       });
 
       // when the GeoLocation API provides a position update, move the point to new position
+      //  and update the server 
       geolocation.on('change:position', function() {
         var position = geolocation.getPosition();
         console.log('Your location: ', position);
@@ -117,6 +118,12 @@
       
       var ownUuid = guid(); 
 
+      /*
+        userUuid = {
+          'name': userName,
+          'positionFeature': userPositionFeature
+        }      
+      */
       var userLocations = {};
 
       var defaultStroke = new ol.style.Stroke({
@@ -160,10 +167,14 @@
 
       function update_other_user_locations_on_map(otherUserLocations) {
         for (var otherUuid in otherUserLocations) {
-          if ((!otherUserLocations.hasOwnProperty(otherUuid)) || otherUuid === ownUuid) {
+          if (!otherUserLocations.hasOwnProperty(otherUuid)) {
               //The current property is not a direct property of p
               //Also skip our own UUID
               continue;
+          }
+          // skip own uuid, since we get own location from device itself
+          if (otherUuid == ownUuid) { 
+            continue;
           }
           var otherUserData = otherUserLocations[otherUuid];
           console.log(otherUuid, otherUserData);
@@ -187,8 +198,8 @@
 
             update_other_user_locations_on_map(otherUserLocations);
           }
-          // Call self after 1.5 seconds
-          setTimeout(get_other_locations, 1500);
+          // Call self after 3 seconds
+          setTimeout(get_other_locations, 3000);
         };
         xhr.send();
       }
