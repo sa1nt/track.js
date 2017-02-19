@@ -27,7 +27,7 @@
     <form id="name-input-form" class="info">
       <div>
         <label for="name-input" class="tall">Name:</label>
-        <input type="text" id="name-input" class="tall" name="user_name" placeholder="Enter your name" autofocus>
+        <input type="text" id="name-input" class="tall" name="user-name" placeholder="Enter your name" autofocus>
         <button type="submit" id="name-button" class="tall">OK</button>
       </div>
     </form>
@@ -79,7 +79,7 @@
         var position = geolocation.getPosition();
         view.setCenter(position);
 
-        update_point_location(ownUuid, position);
+        updatePointLocation(ownUuid, position);
       });
 
       // when the GeoLocation API provides a position update, move the point to new position
@@ -87,8 +87,8 @@
       geolocation.on('change:position', function() {
         var position = geolocation.getPosition();
         console.log('Your location: ', position);
-        update_point_location(ownUuid, position);
-        send_location(ownUuid, position);
+        updatePointLocation(ownUuid, position);
+        sendLocation(ownUuid, position);
       });
 
       geolocation.on('error', function(error) {
@@ -97,7 +97,7 @@
 
       // A second after the page has finished loading, fetch other users locations 
       window.onload = function() {
-        setTimeout(get_other_locations, 1000);
+        setTimeout(getOtherLocations, 1000);
       };
 
     </script>
@@ -114,6 +114,7 @@
         '#00acfc',  //blue
         '#b900fc',  //violet
         '#fc00b0',  //pink
+        '#ffffff'   // black
       ];
       
       var ownUuid = guid(); 
@@ -126,8 +127,8 @@
       */
       var userLocations = {};
 
-      function create_point_feature(userUuid, userName, is_self) {
-        var color = is_self ? colours[0] : colours[Math.floor(Math.random() * (colours.length)) + 1];
+      function createPointFeature(userUuid, userName, isSelf) {
+        var color = isSelf ? colours[0] : colours[uuidToColourIndex(userUuid)];
 
         var userPositionFeature = new ol.Feature();
         userPositionFeature.setStyle(new ol.style.Style({
@@ -157,13 +158,13 @@
         return userPositionFeature;
       }
 
-      function update_point_location(userUuid, coords) {
+      function updatePointLocation(userUuid, coords) {
         var userLocationObject = userLocations[userUuid];
         var locationFeature = userLocationObject['positionFeature'];
         locationFeature.setGeometry(new ol.geom.Point(coords));
       }
 
-      function update_other_user_locations_on_map(otherUserLocations) {
+      function updateOtherUserLocationsOnMap(otherUserLocations) {
         for (var otherUuid in otherUserLocations) {
           if (!otherUserLocations.hasOwnProperty(otherUuid)) {
               //The current property is not a direct property of p
@@ -175,50 +176,71 @@
             continue;
           }
           var otherUserData = otherUserLocations[otherUuid];
-          console.log(otherUuid, otherUserData);
+//          console.log(otherUuid, otherUserData);
 
           if (!userLocations[otherUuid]) {
-            var userPositionFeature = create_point_feature(otherUuid, otherUserData['name'], false);
+            var userPositionFeature = createPointFeature(otherUuid, otherUserData['name'], false);
           }
 
-          update_point_location(otherUuid, [otherUserData.latitude, otherUserData.longtitude]);
+          updatePointLocation(otherUuid, [otherUserData.latitude, otherUserData.longtitude]);
         }
       }
 
-      function get_other_locations() {
+      function getOtherLocations() {
         var xhr = new XMLHttpRequest();
-        xhr.open('GET', './location');
+        // in case GET requests are cached by Heroku
+        xhr.open('GET', './location?ts='+ Date.now());
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.onload = function() {
           if (xhr.status === 200) {
-            console.log(xhr.responseText);
+//            console.log(xhr.responseText);
             var otherUserLocations = JSON.parse(xhr.responseText);
 
-            update_other_user_locations_on_map(otherUserLocations);
+            updateOtherUserLocationsOnMap(otherUserLocations);
           }
           // Call self after 3 seconds
-          setTimeout(get_other_locations, 3000);
+          setTimeout(getOtherLocations, 3000);
         };
         xhr.send();
       }
 
-      function send_location(ownUuid, ol_position) {
+      function sendLocation(ownUuid, olPosition) {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', './location');
         xhr.setRequestHeader('Content-Type', 'application/json');
         xhr.onload = function() {
           if (xhr.status === 200) {
-            console.log(xhr.responseText);
+//            console.log(xhr.responseText);
           }
         };
 
         xhr.send(JSON.stringify({
           'uuid': ownUuid,
           'name': userLocations[ownUuid]['name'],
-          'latitude': ol_position[0],
-          'longtitude': ol_position[1]
+          'latitude': olPosition[0],
+          'longtitude': olPosition[1]
         }));
       }
+
+      function uuidToColourIndex(uuid) {
+        var coloursLength = colours.length,
+            uuidHash = hashCode(uuid);
+
+        return uuidHash % coloursLength;
+      }
+
+      // used to deterministically transform user's UUID to a number and then to take 
+      //  user's point colour 
+      function hashCode(str) {
+        var hash = 0, i, chr, len;
+        if (str.length === 0) return hash;
+        for (i = 0, len = str.length; i < len; i++) {
+          chr   = str.charCodeAt(i);
+          hash  = ((hash << 5) - hash) + chr;
+          hash |= 0; // Convert to 32bit integer
+        }
+        return hash;
+      };
 
       function guid() {
         return s4() + s4() + '-' + s4() + '-' + s4() + '-' + s4() + '-' + s4() + s4() + s4();
@@ -239,7 +261,7 @@
         var name = document.getElementById('name-input').value;
 
         geolocation.setTracking(true);
-        create_point_feature(ownUuid, name, true);
+        createPointFeature(ownUuid, name, true);
 
         nameForm.disabled = 'disabled';
         document.getElementById('name-input-form').style.display = 'none';
