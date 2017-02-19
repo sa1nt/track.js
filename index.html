@@ -15,24 +15,62 @@
         width: device-width; 
       }
     </style>
-    <style type="text/css">
-      .tall {
-        height: 30px;
-      }
-    </style>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol-debug.js" type="text/javascript"></script>
     <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script>
+
+    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>    
+
+    <script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.ui.position.min.js"></script>
+
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.contextMenu.min.js"></script>
+    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.contextMenu.min.css">
+
+    <style type="text/css">
+      #name-input-form {
+        top: 30%;
+        left: 50%;
+        margin-left: -125px;
+        width: 250px;
+        border: medium solid red;
+        border-radius: 10px;
+        padding: 0.5em;
+      }
+      .tall {
+        font-size: large; 
+        margin-bottom: 0.5em;
+      }
+    </style>
   </head>
   <body>
-    <form id="name-input-form" class="info">
+    <form id="name-input-form" class="info ol-unselectable ol-control">
       <div>
         <label for="name-input" class="tall">Name:</label>
         <input type="text" id="name-input" class="tall" name="user-name" placeholder="Enter your name" autofocus>
-        <button type="submit" id="name-button" class="tall">OK</button>
+        <button type="submit" id="name-button" >OK</button>
       </div>
     </form>
 
     <div id="map" class="full-map"></div>
+
+    <script type="text/javascript">
+      window.app = {};
+      var app = window.app;
+
+      app.NameForm = function(opt_options) {
+        var options = opt_options || {};
+        var nameForm = document.getElementById('name-input-form');
+        ol.control.Control.call(this, {
+          element: nameForm,
+          target: options.target
+        });
+      };
+
+      ol.inherits(app.NameForm, ol.control.Control);
+    </script>
+
     <script>
       var osmTileLayer = new ol.layer.Tile({
         source: new ol.source.OSM()
@@ -55,6 +93,9 @@
       });
 
       var map = new ol.Map({
+        controls: ol.control.defaults().extend([
+          new app.NameForm()
+        ]),
         target: 'map',
         layers: [
           osmTileLayer, 
@@ -113,8 +154,8 @@
         '#00fcda',  //blue-green
         '#00acfc',  //blue
         '#b900fc',  //violet
-        '#fc00b0',  //pink
-        '#ffffff'   // black
+        '#fc00b0'   //pink
+//        '#ffffff'   // black
       ];
       
       var ownUuid = guid(); 
@@ -226,7 +267,7 @@
         var coloursLength = colours.length,
             uuidHash = hashCode(uuid);
 
-        return uuidHash % coloursLength;
+        return Math.abs(uuidHash % coloursLength);
       }
 
       // used to deterministically transform user's UUID to a number and then to take 
@@ -267,7 +308,21 @@
         document.getElementById('name-input-form').style.display = 'none';
       }, false);
 
-
+      $.contextMenu({
+        // define which elements trigger this menu
+        selector: "#map",
+        // define the elements of the menu
+        items: {
+          foo: {
+            name: "Add point", 
+            callback: function(key, opt){ 
+              alert("Foo!"); 
+            }
+          },
+          bar: {name: "Bar", callback: function(key, opt){ alert("Bar!") }}
+        }
+        // there's more, have a look at the demos and docs...
+      });
     </script>
   </body>
 </html>

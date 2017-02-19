@@ -1,21 +1,3 @@
-/*
-idea:
-centralized tracking of people w. GPS-enabled phones through a webpage
-
-server:
-1. provides a basic index.html with
-	a. JS to show a map
-	b. JS to send current location to server
-		periodically
-		also, some name
-			provided by user
-			auto-generated
-	c. the map shows locations of all users
-
-client: 
-1. periodically sends location to server
-2. stays active when not in use
-*/
 
 var connect = require('connect');
 var serveStatic = require('serve-static');
@@ -78,7 +60,6 @@ app.use('/location', function(request, response) {
 		}
 	}
 });
-
 
 var staticPath = '/'; 
 app.use(staticPath, serveStatic(__dirname + staticPath)); 
