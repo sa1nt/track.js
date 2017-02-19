@@ -5,29 +5,23 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 
-    <title>track.js</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.css" type="text/css">
-    <link rel="stylesheet" href="./samples.css" type="text/css" />
-
     <!-- fix for IE10 on WP8 and W8 -->
     <style type="text/css">
       @-ms-viewport       { 
         width: device-width; 
       }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol-debug.js" type="text/javascript"></script>
+
+    <title>track.js</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.css" type="text/css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.js" type="text/javascript"></script>
+
     <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script>
 
-    <script type="text/javascript" src="https://code.jquery.com/jquery-1.12.4.min.js"></script>    
+    <link href="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.min.css" rel="stylesheet">
+    <script src="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.js"></script>
 
-    <script type="text/javascript" src="https://code.jquery.com/ui/1.12.1/jquery-ui.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://code.jquery.com/ui/1.12.1/themes/base/jquery-ui.css">
-
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.ui.position.min.js"></script>
-
-    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.contextMenu.min.js"></script>
-    <link rel="stylesheet" type="text/css" href="https://cdnjs.cloudflare.com/ajax/libs/jquery-contextmenu/2.4.2/jquery.contextMenu.min.css">
-
+    <link rel="stylesheet" href="./samples.css" type="text/css" />
     <style type="text/css">
       #name-input-form {
         top: 30%;
@@ -55,6 +49,7 @@
 
     <div id="map" class="full-map"></div>
 
+    <!-- setup name form -->
     <script type="text/javascript">
       window.app = {};
       var app = window.app;
@@ -92,16 +87,96 @@
         source: positionLayerSource
       });
 
+      var pointsLayerSource = new ol.source.Vector({
+        features: []
+      });
+
+      var pointsLayer = new ol.layer.Vector({
+        source: pointsLayerSource
+      });
+
+      var url_marker = '//cdn.rawgit.com/jonataswalker/ol3-contextmenu/master/examples/img/pin_drop.png';
+      function addPoint(obj) {
+        var coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326'),
+            template = 'Coordinates: ({x} | {y})',
+            iconStyle = new ol.style.Style({
+              image: new ol.style.Icon({ scale: .6, src: url_marker }),
+              text: new ol.style.Text({
+                offsetY: 25,
+                text: ol.coordinate.format(coord4326, template, 2),
+                font: '15px Open Sans,sans-serif',
+                fill: new ol.style.Fill({ color: '#111' }),
+                stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
+              })
+            }),
+            feature = new ol.Feature({
+              type: 'removable',
+              geometry: new ol.geom.Point(obj.coordinate)
+            });
+        feature.setStyle(iconStyle);
+        pointsLayerSource.addFeature(feature);
+      };
+
+      var removeMarker = function (obj) {
+        pointsLayerSource.removeFeature(obj.data.marker);
+      };
+
+      var removeMarkerItem = {
+        text: 'Remove this Point',
+        icon: url_marker,
+        callback: removeMarker
+      };
+
+      var contextmenu_items = [{
+          text: 'Add a Point',
+          icon: url_marker,
+          callback: addPoint
+      }];
+
+      var contextmenu = new ContextMenu({
+        width: 190,
+        default_items: false,
+        items: contextmenu_items
+      });
+
       var map = new ol.Map({
         controls: ol.control.defaults().extend([
-          new app.NameForm()
+          new app.NameForm(),
+          contextmenu
         ]),
         target: 'map',
         layers: [
           osmTileLayer, 
-          positionLayer
+          positionLayer,
+          pointsLayer
         ],
         view: view
+      });
+
+      // make context menu contain 'Remove Point' if clicked on an existing Point
+      contextmenu.on('open', function(evt){
+        var feature = map.forEachFeatureAtPixel(evt.pixel, function (ft, l) {
+          return ft;
+        });
+
+        if (feature && feature.get('type') == 'removable') {
+          contextmenu.clear();
+          removeMarkerItem.data = { marker: feature };
+          contextmenu.push(removeMarkerItem);
+        } else {
+          contextmenu.clear();
+          contextmenu.extend(contextmenu_items);
+//          contextmenu.extend(contextmenu.getDefaultItems());
+        }
+      });
+
+      // change cursor to 'pointer' when hover over existing Point
+      map.on('pointermove', function(e) {
+        if (e.dragging) return;
+        var pixel = map.getEventPixel(e.originalEvent);
+        var hit = map.hasFeatureAtPixel(pixel);
+        var targetElement = map.getTargetElement();
+        targetElement.style.cursor = hit ? 'pointer' : '';
       });
 
       // create a Geolocation object setup to track the position of the device
@@ -145,7 +220,7 @@
 
     <script type="text/javascript">
       var colours = [
-        '#3399CC',
+        '#3399CC',  //default blue
         '#f44242',  //red
         '#f4b942',  //orange
         '#f4fc00',  //yellow
@@ -160,7 +235,7 @@
       
       var ownUuid = guid(); 
 
-      /*
+      /**
         userLocations[userUuid] = {
           'name': userName,
           'positionFeature': userPositionFeature
@@ -293,7 +368,9 @@
           .substring(1);
       }      
     </script>
+
     <script type="text/javascript">
+      // setup listener for the name form
       var nameForm = document.getElementById('name-input-form');
       nameForm.addEventListener('submit', function(e) {
         // Prevent actual submission of the form as a GET
@@ -307,22 +384,6 @@
         nameForm.disabled = 'disabled';
         document.getElementById('name-input-form').style.display = 'none';
       }, false);
-
-      $.contextMenu({
-        // define which elements trigger this menu
-        selector: "#map",
-        // define the elements of the menu
-        items: {
-          foo: {
-            name: "Add point", 
-            callback: function(key, opt){ 
-              alert("Foo!"); 
-            }
-          },
-          bar: {name: "Bar", callback: function(key, opt){ alert("Bar!") }}
-        }
-        // there's more, have a look at the demos and docs...
-      });
     </script>
   </body>
 </html>
