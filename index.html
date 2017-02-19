@@ -20,7 +20,7 @@
         height: 30px;
       }
     </style>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.js" type="text/javascript"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol-debug.js" type="text/javascript"></script>
     <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script>
   </head>
   <body>
@@ -126,11 +126,6 @@
       */
       var userLocations = {};
 
-      var defaultStroke = new ol.style.Stroke({
-        color: '#fff',
-        width: 2
-      });
-
       function create_point_feature(userUuid, userName, is_self) {
         var color = is_self ? colours[0] : colours[Math.floor(Math.random() * (colours.length)) + 1];
 
@@ -141,7 +136,10 @@
             fill: new ol.style.Fill({
               color: color
             }),
-            stroke: defaultStroke
+            stroke: new ol.style.Stroke({
+              color: '#fff', // black border around circle
+              width: 2
+            })
           }),
           text: new ol.style.Text({
             font: '14px sans-serif',
