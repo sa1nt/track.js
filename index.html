@@ -21,6 +21,8 @@
     <link href="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.min.css" rel="stylesheet">
     <script src="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.js"></script>
 
+    <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/nosleep/0.5.0/NoSleep.js"></script>
+
     <link rel="stylesheet" href="./samples.css" type="text/css" />
     <style type="text/css">
       #name-input-form {
@@ -36,7 +38,18 @@
         font-size: large; 
         margin-bottom: 0.5em;
       }
-    </style>
+
+      .rotate-north {
+        bottom: 10px;
+        left: .5em;
+      }
+      .ol-touch .rotate-north {
+        bottom: 10px;
+      }    
+      .no-sleep-button {
+        width: auto !important;
+      }
+      </style>
   </head>
   <body>
     <form id="name-input-form" class="info ol-unselectable ol-control">
@@ -62,8 +75,50 @@
           target: options.target
         });
       };
-
       ol.inherits(app.NameForm, ol.control.Control);
+
+      app.NoSleepSwitch = function(opt_options) {
+        var options = opt_options || {};
+
+        this.noSleepOn = options.isOn !== undefined ? options.isOn : false;
+        this.buttonText = 'Turn NoSleep ' + (this.noSleepOn ? 'OFF' : 'ON');
+
+        this.button = document.createElement('button');
+        this.button.className = 'no-sleep-button';
+        this.button.innerHTML = this.buttonText;
+
+        this.noSleep = new NoSleep();
+
+        // will fire only if correct options were passed into 'constructor'
+        if (this.noSleepOn) {
+          this.noSleep.enable();
+        } 
+
+        var this_ = this;
+        var handleNoSleeSwitch = function() {
+          this_.noSleepOn = !this_.noSleepOn;
+          if (this_.noSleepOn) {
+            this_.noSleep.enable();
+          } else {
+            this_.noSleep.disable();
+          }
+          this_.button.innerHTML = 'Turn NoSleep ' + (this_.noSleepOn ? 'OFF' : 'ON');
+        };
+
+        this.button.addEventListener('click', handleNoSleeSwitch, false);
+        this.button.addEventListener('touchstart', handleNoSleeSwitch, false);
+
+        var element = document.createElement('div');
+        element.className = 'rotate-north ol-unselectable ol-control';
+        element.appendChild(this.button);
+
+        ol.control.Control.call(this, {
+          element: element,
+          target: options.target
+        });
+
+      };
+      ol.inherits(app.NoSleepSwitch, ol.control.Control);
     </script>
 
     <script>
@@ -196,6 +251,7 @@
       var map = new ol.Map({
         controls: ol.control.defaults().extend([
           new app.NameForm(),
+          new app.NoSleepSwitch(),
           contextmenu
         ]),
         target: 'map',
