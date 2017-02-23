@@ -38,27 +38,29 @@ app.use('/location/clear', function(request, response){
 	}
 });
 app.use('/location', function(request, response) {
+	// get locations of all users
 	if (request.method === "GET") {
-//		console.log('GET /location request');
 		response.writeHead(200, {
 			"Content-Type": "application/json"
 		});
 		response.end(JSON.stringify(userLocations));
 	}
+	// update userLocations Map 
 	if (request.method === "POST") {
 		console.log('POST /location request. Body: ', request.body);
-		if (request.body.name && request.body.uuid && request.body.latitude && request.body.longtitude) {
-			// if a request contains location info, then update userLocations Map 
+		// note that request.body.name is not necessary
+		if (request.body.uuid && request.body.latitude && request.body.longtitude) {
+			var userName = request.body.name || '';
 			var userKey = request.body.uuid;
 			userLocations[userKey] = {
-				'name': request.body.name,
+				'name': userName,
 				'latitude': request.body.latitude,
 				'longtitude': request.body.longtitude
 			};
 			response.writeHead(200, {'Content-Type': 'text/plain'});
 			response.end('OK\n');
 		} else {
-			response.write(400);
+			response.writeHead(400);
 			response.end('POST /location request should be a JSON with "name", "uuid", "latitude" and "longtitude" elements');
 		}
 	}
@@ -113,7 +115,7 @@ app.use('/point', function(request, response) {
 			response.writeHead(200, {'Content-Type': 'text/plain'});
 			response.end('OK\n');
 		} else {
-			response.write(400);
+			response.writeHead(400);
 			response.end('POST /location request should be a JSON with "uuid", "latitude" and "longtitude" elements');
 		}
 	}
