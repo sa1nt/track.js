@@ -21,8 +21,24 @@
     <link href="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.min.css" rel="stylesheet">
     <script src="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.js"></script>
 
-    <link rel="stylesheet" href="./samples.css" type="text/css" />
     <style type="text/css">
+      html, body {
+        padding: 0;
+        margin: 0;
+        width: 100%;
+        height: 100%;
+      }
+      .map {/*unused*/
+        height: 500px;
+        width: 100%;
+        background-color: #b5d0d0;
+      }
+      .full-map {
+        width: 100%;
+        height: 100%;
+        background-color: #b5d0d0;
+      }
+
       #name-input-form {
         top: 30%;
         left: 50%;
@@ -31,6 +47,7 @@
         border: medium solid red;
         border-radius: 10px;
         padding: 0.5em;
+        display: none;
       }
       .tall {
         font-size: large; 
@@ -43,7 +60,7 @@
       <div>
         <label for="name-input" class="tall">Name:</label>
         <input type="text" id="name-input" class="tall" name="user-name" placeholder="Enter your name" autofocus>
-        <button type="submit" id="name-button" >OK</button>
+        <button type="submit" id="name-button">OK</button>
       </div>
     </form>
 
@@ -57,6 +74,32 @@
       app.NameForm = function(opt_options) {
         var options = opt_options || {};
         var nameForm = document.getElementById('name-input-form');
+        nameForm.style.display = 'block';
+        var nameInput = document.getElementById('name-input');
+
+        var this_ = this;
+        this_.nameInput = nameInput;
+        var handleNameSubmit = function (e) {
+          e.preventDefault();
+
+          var enteredName = this_.nameInput.value;
+          localStorage.setItem('name', enteredName);
+          createUserPointFeature(ownUuid, enteredName, true);
+
+          geolocation.setTrackingOptions({
+            enableHighAccuracy: true
+          });
+          geolocation.setTracking(true);
+
+          this_.element.disabled = 'disabled';
+          this_.getMap().removeControl(this_);
+        };
+
+        nameForm.addEventListener('submit', handleNameSubmit, {
+          capture: false,
+          once: true
+        });
+
         ol.control.Control.call(this, {
           element: nameForm,
           target: options.target
@@ -64,9 +107,7 @@
       };
 
       ol.inherits(app.NameForm, ol.control.Control);
-    </script>
 
-    <script>
       var osmTileLayer = new ol.layer.Tile({
         source: new ol.source.OSM()
       });
@@ -87,138 +128,71 @@
         source: positionLayerSource
       });
 
-      var pointsLayerSource = new ol.source.Vector({
+      var markerLayerSource = new ol.source.Vector({
         features: []
       });
 
-      var pointsLayer = new ol.layer.Vector({
-        source: pointsLayerSource,
+      var markerLayer = new ol.layer.Vector({
+        source: markerLayerSource,
         // custom field, so we could differ between user location features
         //  and point features
-        type: 'points'
+        type: 'markers'
       });
-
-      var url_marker = '//cdn.rawgit.com/jonataswalker/ol3-contextmenu/master/examples/img/pin_drop.png';
-      var addPoint = function(obj) {
-        // create new UUID if not set already 
-        //  (we have one set when this point was received from server and not created here)
-        var pointUuid = obj.uuid ? obj.uuid : guid();
-
-        // don't show point we're already showing
-        if (!pointLocations[pointUuid]) {
-          var coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326'),
-              template = 'Coordinates: ({x} | {y})',
-              iconStyle = new ol.style.Style({
-                image: new ol.style.Icon({ scale: .6, src: url_marker }),
-                text: new ol.style.Text({
-                  offsetY: 25,
-                  text: ol.coordinate.format(coord4326, template, 2),
-                  font: '15px Open Sans,sans-serif',
-                  fill: new ol.style.Fill({ color: '#111' }),
-                  stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
-                })
-              }),
-              feature = new ol.Feature({
-                type: 'removable',
-                uuid: pointUuid,
-                geometry: new ol.geom.Point(obj.coordinate)
-              });
-          feature.setStyle(iconStyle);
-          pointsLayerSource.addFeature(feature);
-
-          pointLocations[pointUuid] = {
-            'positionFeature': feature
-          };
-        }
-
-        // send to others if this point was created on this device
-        if (!obj.uuid) {
-          var xhr = new XMLHttpRequest();
-          xhr.open('POST', './point');
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.onload = function() {
-            if (xhr.status === 200) {
-  //            console.log(xhr.responseText);
-            }
-          };
-
-          xhr.send(JSON.stringify({
-            'uuid': pointUuid,
-  //          'name': userLocations[ownUuid]['name'],
-            'latitude': obj.coordinate[0],
-            'longtitude': obj.coordinate[1]
-          }));
-        }
-      };
-
-      var removeMarker = function (obj) {
-//        var feature = obj.data ? obj.data.marker ? obj.data.marker : pointLocations[obj.uuid];
-        var feature = (obj.data && obj.data.marker) ? obj.data.marker : pointLocations[obj.uuid]['positionFeature'];
-//        var pointUuid = obj.data.marker ? feature.get('uuid') : obj.uuid;
-        var pointUuid = (obj.data && obj.data.marker) ? feature.get('uuid') : obj.uuid;
-
-        pointsLayerSource.removeFeature(feature);
-
-        delete pointLocations[pointUuid];
-
-        if (obj.data && obj.data.marker) {
-          var xhr = new XMLHttpRequest();
-          // in case GET requests are cached by Heroku
-          xhr.open('GET', './point/clear?uuid=' + pointUuid + '&ts='+ Date.now());
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.onload = function() {
-            if (xhr.status === 200) {
-
-            }
-          };
-          xhr.send();
-        }
-      };
 
       var removeMarkerItem = {
         text: 'Remove this Point',
-        icon: url_marker,
+//        icon: url_marker,
         callback: removeMarker
       };
 
-      var contextmenu_items = [{
+      var addMarkerItem = {
         text: 'Add a Point',
-        icon: url_marker,
-        callback: addPoint
-      }];
+//        icon: url_marker,
+        callback: addMarker
+      };
+
+      var contextmenuItems = [
+        addMarkerItem
+      ];
 
       var contextmenu = new ContextMenu({
         width: 190,
         default_items: false,
-        items: contextmenu_items
+        items: contextmenuItems
       });
 
       var map = new ol.Map({
         controls: ol.control.defaults().extend([
-          new app.NameForm(),
           contextmenu
         ]),
         target: 'map',
         layers: [
           osmTileLayer, 
           positionLayer,
-          pointsLayer
+          markerLayer
         ],
         view: view
       });
 
-      // make context menu contain 'Remove Point' if clicked on an existing Point
       contextmenu.on('open', function(evt){
         var feature = map.forEachFeatureAtPixel(evt.pixel, function (ft, l) {
           return ft;
         });
 
         contextmenu.clear();
+        // make context menu contain 'Remove Point' if clicked on an existing Point
         if (feature && feature.get('type') == 'removable') {
-          removeMarkerItem.data = { marker: feature };
+          // data object below will be available in the callback function as obj.data
+          removeMarkerItem.data = { 
+            marker: feature, 
+            isLocal: true 
+          };
           contextmenu.push(removeMarkerItem);
         } else {
-          contextmenu.extend(contextmenu_items);
+          addMarkerItem.data = {
+            isLocal: true
+          };
+          contextmenu.extend(contextmenuItems);
         }
       });
 
@@ -228,7 +202,7 @@
         var pixel = map.getEventPixel(e.originalEvent);
         var hit = map.hasFeatureAtPixel(pixel, {
           layerFilter: function(layerCandidate){
-            return layerCandidate.get('type') == 'points';
+            return layerCandidate.get('type') == 'markers';
           }
         });
         var targetElement = map.getTargetElement();
@@ -236,8 +210,8 @@
       });
 
       // create a Geolocation object setup to track the position of the device
+      //  we start tracking later, once user fills in his username
       var geolocation = new ol.Geolocation({
-//        tracking: true,
         projection: view.getProjection()
       });
 
@@ -249,18 +223,18 @@
       // once we have a position for the first time, center the map on it
       geolocation.once('change:position', function() {
         var position = geolocation.getPosition();
+        console.log('Your location: ', position);
         view.setCenter(position);
-
-        updatePointLocation(ownUuid, position);
+        updateUserLocation(ownUuid, position);
       });
 
       // when the GeoLocation API provides a position update, move the point to new position
       //  and update the server 
       geolocation.on('change:position', function() {
         var position = geolocation.getPosition();
-        console.log('Your location: ', position);
-        updatePointLocation(ownUuid, position);
-        sendLocation(ownUuid, position);
+//        console.log('Your location: ', position);
+        updateUserLocation(ownUuid, position);
+        sendUserLocation(ownUuid, position);
       });
 
       geolocation.on('error', function(error) {
@@ -270,15 +244,26 @@
         }
       });
 
-      // A second after the page has finished loading, fetch other users locations 
       window.onload = function() {
-        setTimeout(getOtherLocations, 1000);
-        setTimeout(getPoints(1000));
+        // If we don't have a meaningful name in localStorage, ask user for one
+        // TODO: this has to be refactored into something better
+        var existingName = localStorage.getItem('name');
+        if (!existingName) {
+           map.addControl(new app.NameForm());
+        } else {
+          createUserPointFeature(ownUuid, existingName, true);
+
+          geolocation.setTrackingOptions({
+            enableHighAccuracy: true
+          });
+          geolocation.setTracking(true);
+        }
+
+        // A second after the page has finished loading, fetch other users locations and markers
+        setTimeout(updateOtherUsersLocations, 1000);
+        setTimeout(updateMarkers(1000));
       };
 
-    </script>
-
-    <script type="text/javascript">
       var colours = [
         '#3399CC',  //default blue
         '#f44242',  //red
@@ -292,8 +277,12 @@
         '#fc00b0'   //pink
 //        '#ffffff'   // black
       ];
-      
-      var ownUuid = guid(); 
+
+      var ownUuid = function() {
+        var result = localStorage.getItem('uuid') || guid();
+        localStorage.setItem('uuid', result);
+        return result;
+      }();
 
       /**
         userLocations[userUuid] = {
@@ -342,7 +331,7 @@
         return userPositionFeature;
       }
 
-      function updatePointLocation(userUuid, coords) {
+      function updateUserLocation(userUuid, coords) {
         var userLocationObject = userLocations[userUuid];
         var locationFeature = userLocationObject['positionFeature'];
         locationFeature.setGeometry(new ol.geom.Point(coords));
@@ -366,11 +355,11 @@
             var userPositionFeature = createUserPointFeature(otherUuid, otherUserData['name'], false);
           }
 
-          updatePointLocation(otherUuid, [otherUserData.latitude, otherUserData.longtitude]);
+          updateUserLocation(otherUuid, [otherUserData.latitude, otherUserData.longtitude]);
         }
       }
 
-      function getOtherLocations() {
+      function updateOtherUsersLocations() {
         var xhr = new XMLHttpRequest();
         // in case GET requests are cached by Heroku
         xhr.open('GET', './location?ts='+ Date.now());
@@ -383,12 +372,113 @@
             updateOtherUserLocationsOnMap(otherUserLocations);
           }
           // Call self after 3 seconds
-          setTimeout(getOtherLocations, 3000);
+          setTimeout(updateOtherUsersLocations, 3000);
         };
         xhr.send();
       }
 
-      function getPoints() {
+      /*
+        obj: {
+          data: { 
+            isLocal: true
+          }
+          OR 
+          data: { 
+            isLocal: false,
+            uuid: <uuid>
+          }
+        }
+        isLocal: boolean - if this call was initiated by current user (true) or by update from server (false)
+      */
+      function addMarker(obj) {
+        var isLocal = obj.data.isLocal;
+        var pointUuid = isLocal ? guid() : obj.data.uuid;
+
+        // don't show point we're already showing
+        if (!pointLocations[pointUuid]) {
+          var url_marker = '//cdn.rawgit.com/jonataswalker/ol3-contextmenu/master/examples/img/pin_drop.png',
+              coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326'),
+              template = 'Coordinates: ({x} | {y})',
+              iconStyle = new ol.style.Style({
+                image: new ol.style.Icon({ scale: .6, src: url_marker }),
+                text: new ol.style.Text({
+                  offsetY: 25,
+                  text: ol.coordinate.format(coord4326, template, 2),
+                  font: '15px Open Sans,sans-serif',
+                  fill: new ol.style.Fill({ color: '#111' }),
+                  stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
+                })
+              }),
+              feature = new ol.Feature({
+                type: 'removable',
+                uuid: pointUuid,
+                geometry: new ol.geom.Point(obj.coordinate)
+              });
+          feature.setStyle(iconStyle);
+          markerLayerSource.addFeature(feature);
+
+          pointLocations[pointUuid] = {
+            'positionFeature': feature
+          };
+        }
+
+        // send to others if this point was created on this device
+        if (isLocal) {
+          var xhr = new XMLHttpRequest();
+          xhr.open('POST', './point');
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+  //            console.log(xhr.responseText);
+            }
+          };
+
+          xhr.send(JSON.stringify({
+            'uuid': pointUuid,
+  //          'name': userLocations[ownUuid]['name'],
+            'latitude': obj.coordinate[0],
+            'longtitude': obj.coordinate[1]
+          }));
+        }
+      };
+
+      /*
+        obj: {
+          data: { 
+            marker: feature, 
+            isLocal: true 
+          }
+          OR 
+          data: {
+            uuid: <marker UUID>,
+            isLocal: false
+          }
+        }
+        isLocal: boolean - if this call was initiated by current user (true) or by update from server (false)
+      */
+      function removeMarker(obj) {
+        var isLocal = obj.data.isLocal;
+        var feature = isLocal ? obj.data.marker : pointLocations[obj.data.uuid]['positionFeature'];
+        var pointUuid = isLocal ? feature.get('uuid') : obj.data.uuid;
+
+        markerLayerSource.removeFeature(feature);
+        delete pointLocations[pointUuid];
+
+        if (isLocal) {
+          var xhr = new XMLHttpRequest();
+          // in case GET requests are cached by Heroku, add a ts GET param
+          xhr.open('GET', './point/clear?uuid=' + pointUuid + '&ts='+ Date.now());
+          xhr.setRequestHeader('Content-Type', 'application/json');
+          xhr.onload = function() {
+            if (xhr.status === 200) {
+
+            }
+          };
+          xhr.send();
+        }
+      };
+
+      function updateMarkers() {
         var xhr = new XMLHttpRequest();
         // in case GET requests are cached by Heroku
         xhr.open('GET', './point?ts='+ Date.now());
@@ -403,13 +493,24 @@
                   continue;
               }
 
+              // markers with negative latitude or longtitude are deleted points
               if (otherPointLocations[otherUuid]['latitude'] < 0 || otherPointLocations[otherUuid]['longtitude'] < 0) {
                 if (pointLocations[otherUuid]) {
-                  removeMarker({uuid: otherUuid});
+                  // mimic arg structure when called as contextmenu callback
+                  removeMarker({
+                    data: {
+                      uuid: otherUuid, 
+                      isLocal: false
+                    }
+                  });
                 }
               } else {  
-                addPoint({
-                  uuid: otherUuid,
+                // mimic arg structure when called as contextmenu callback
+                addMarker({
+                  data: {
+                    isLocal: false,
+                    uuid: otherUuid
+                  },
                   coordinate: [
                     otherPointLocations[otherUuid]['latitude'],
                     otherPointLocations[otherUuid]['longtitude']
@@ -419,12 +520,12 @@
             }
           }
           // Call self after 10 seconds
-          setTimeout(getPoints, 10000);
+          setTimeout(updateMarkers, 10000);
         };
         xhr.send();
       }
 
-      function sendLocation(ownUuid, olPosition) {
+      function sendUserLocation(ownUuid, olPosition) {
         var xhr = new XMLHttpRequest();
         xhr.open('POST', './location');
         xhr.setRequestHeader('Content-Type', 'application/json');
@@ -471,23 +572,6 @@
           .toString(16)
           .substring(1);
       }      
-    </script>
-
-    <script type="text/javascript">
-      // setup listener for the name form
-      var nameForm = document.getElementById('name-input-form');
-      nameForm.addEventListener('submit', function(e) {
-        // Prevent actual submission of the form as a GET
-        e.preventDefault();
-
-        var name = document.getElementById('name-input').value;
-
-        geolocation.setTracking(true);
-        createUserPointFeature(ownUuid, name, true);
-
-        nameForm.disabled = 'disabled';
-        document.getElementById('name-input-form').style.display = 'none';
-      }, false);
     </script>
   </body>
 </html>

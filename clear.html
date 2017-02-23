@@ -1,0 +1,32 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+</head>
+<body>
+	
+  <script type="text/javascript">
+    var uuid = localStorage.getItem('uuid');
+    var userName = localStorage.getItem('name');
+    var p = document.createElement('p');
+
+    if (uuid || userName) {
+      var xhr = new XMLHttpRequest();
+      // in case GET requests are cached by Heroku
+      xhr.open('GET', './location/clear?uuid=' + uuid + '&ts='+ Date.now());
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.onload = function() {
+        localStorage.clear();
+
+        p.innerHTML = 'Deleted UUID: ' + uuid + ' associated with name ' + userName;
+      };
+      xhr.send();  
+    } else {
+      p.innerHTML = 'Nothing found to clear'; 
+    }
+    document.getElementsByTagName('body')[0].appendChild(p);
+  </script>
+</body>
+</html>
