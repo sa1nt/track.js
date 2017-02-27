@@ -56,14 +56,6 @@
     </style>
   </head>
   <body>
-    <form id="name-input-form" class="info ol-unselectable ol-control">
-      <div>
-        <label for="name-input" class="tall">Name:</label>
-        <input type="text" id="name-input" class="tall" name="user-name" placeholder="Enter your name" autofocus>
-        <button type="submit" id="name-button">OK</button>
-      </div>
-    </form>
-
     <div id="map" class="full-map"></div>
 
     <!-- setup name form -->
@@ -73,23 +65,44 @@
 
       app.NameForm = function(opt_options) {
         var options = opt_options || {};
-        var nameForm = document.getElementById('name-input-form');
+
+        var nameInputLabel = document.createElement('label');
+        nameInputLabel.setAttribute('for', 'name-input');
+        nameInputLabel.setAttribute('class', 'tall');
+        nameInputLabel.appendChild(document.createTextNode('Name:'));
+
+        var nameInput = document.createElement('input');
+        nameInput.setAttribute('type', 'text');
+        nameInput.setAttribute('id', 'name-input');
+        nameInput.setAttribute('class', 'tall');
+        nameInput.setAttribute('name', 'user-name');
+        nameInput.setAttribute('placeholder', 'Enter your name');
+        nameInput.setAttribute('autofocus', '');
+
+        var nameFormSubmitButton = document.createElement('button');
+        nameFormSubmitButton.setAttribute('type', 'submit');
+        nameFormSubmitButton.setAttribute('id', 'name-button');
+        nameFormSubmitButton.appendChild(document.createTextNode('OK'));
+
+        var nameForm = document.createElement('form');
+        nameForm.setAttribute('id', 'name-input-form');
+        nameForm.setAttribute('class', 'info ol-unselectable ol-control');
+
+        nameForm.appendChild(nameInputLabel);
+        nameForm.appendChild(nameInput);
+        nameForm.appendChild(nameFormSubmitButton);
+
         nameForm.style.display = 'block';
-        var nameInput = document.getElementById('name-input');
+
+        document.body.appendChild(nameForm);
 
         var this_ = this;
         this_.nameInput = nameInput;
+        this_.submitCallback = opt_options.submitCallback;
         var handleNameSubmit = function (e) {
           e.preventDefault();
 
-          var enteredName = this_.nameInput.value;
-          localStorage.setItem('name', enteredName);
-          createUserPointFeature(ownUuid, enteredName, true);
-
-          geolocation.setTrackingOptions({
-            enableHighAccuracy: true
-          });
-          geolocation.setTracking(true);
+          this_.submitCallback(this_);
 
           this_.element.disabled = 'disabled';
           this_.getMap().removeControl(this_);
@@ -148,7 +161,20 @@
       var addMarkerItem = {
         text: 'Add a Point',
 //        icon: url_marker,
-        callback: addMarker
+        callback: function(obj) { 
+          map.addControl(new app.NameForm({
+            submitCallback: function(this_) {
+              var markerName = this_.nameInput.value;
+              addMarker({
+                data: {
+                  isLocal: true,
+                  name: markerName
+                },
+                coordinate: obj.coordinate
+              });
+            }
+          }));
+        }
       };
 
       var contextmenuItems = [
@@ -245,12 +271,28 @@
       });
 
       window.onload = function() {
-        // If we don't have a meaningful name in localStorage, ask user for one
+        // If we don't have a meaningful name and UUID set in localStorage, ask user for name and generate new UUID
         // TODO: this has to be refactored into something better
         var existingName = localStorage.getItem('name');
-        if (!existingName) {
-           map.addControl(new app.NameForm());
+        var existingUserUuid = localStorage.getItem('uuid');
+
+        if (!(existingName && existingUserUuid)) {
+          ownUuid = guid();
+          localStorage.setItem('uuid', ownUuid);
+          map.addControl(new app.NameForm({
+            submitCallback: function(this_) {
+              var enteredName = this_.nameInput.value;
+              localStorage.setItem('name', enteredName);
+              createUserPointFeature(ownUuid, enteredName, true);
+
+              geolocation.setTrackingOptions({
+                enableHighAccuracy: true
+              });
+              geolocation.setTracking(true);
+            }
+          }));
         } else {
+          ownUuid = existingUserUuid;
           createUserPointFeature(ownUuid, existingName, true);
 
           geolocation.setTrackingOptions({
@@ -278,11 +320,7 @@
 //        '#ffffff'   // black
       ];
 
-      var ownUuid = function() {
-        var result = localStorage.getItem('uuid') || guid();
-        localStorage.setItem('uuid', result);
-        return result;
-      }();
+      var ownUuid = undefined; 
 
       /**
         userLocations[userUuid] = {
@@ -293,7 +331,7 @@
       var userLocations = {};
 
       /**
-        pointLocations[pointUuid] = {
+        pointLocations[markerUuid] = {
           'name': some name optional,
           'positionFeature': pointPositionFeature
         }      
@@ -380,22 +418,30 @@
       /*
         obj: {
           data: { 
-            isLocal: true
-          }
+            isLocal: true,
+            name: <String>
+          },
           OR 
           data: { 
             isLocal: false,
-            uuid: <uuid>
-          }
+            uuid: <uuid>,
+            name: <String>
+          },
+
+          coordinate: [
+            <coord1>,
+            <coord2>
+          ]
         }
         isLocal: boolean - if this call was initiated by current user (true) or by update from server (false)
       */
       function addMarker(obj) {
         var isLocal = obj.data.isLocal;
-        var pointUuid = isLocal ? guid() : obj.data.uuid;
+        var markerUuid = isLocal ? guid() : obj.data.uuid;
+        var markerName = obj.data.name;
 
         // don't show point we're already showing
-        if (!pointLocations[pointUuid]) {
+        if (!pointLocations[markerUuid]) {
           var url_marker = '//cdn.rawgit.com/jonataswalker/ol3-contextmenu/master/examples/img/pin_drop.png',
               coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326'),
               template = 'Coordinates: ({x} | {y})',
@@ -403,7 +449,7 @@
                 image: new ol.style.Icon({ scale: .6, src: url_marker }),
                 text: new ol.style.Text({
                   offsetY: 25,
-                  text: ol.coordinate.format(coord4326, template, 2),
+                  text: markerName + ' ' + ol.coordinate.format(coord4326, template, 2),
                   font: '15px Open Sans,sans-serif',
                   fill: new ol.style.Fill({ color: '#111' }),
                   stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
@@ -411,13 +457,13 @@
               }),
               feature = new ol.Feature({
                 type: 'removable',
-                uuid: pointUuid,
+                uuid: markerUuid,
                 geometry: new ol.geom.Point(obj.coordinate)
               });
           feature.setStyle(iconStyle);
           markerLayerSource.addFeature(feature);
 
-          pointLocations[pointUuid] = {
+          pointLocations[markerUuid] = {
             'positionFeature': feature
           };
         }
@@ -434,8 +480,8 @@
           };
 
           xhr.send(JSON.stringify({
-            'uuid': pointUuid,
-  //          'name': userLocations[ownUuid]['name'],
+            'uuid': markerUuid,
+            'name': markerName,
             'latitude': obj.coordinate[0],
             'longtitude': obj.coordinate[1]
           }));
@@ -457,18 +503,20 @@
         isLocal: boolean - if this call was initiated by current user (true) or by update from server (false)
       */
       function removeMarker(obj) {
-        if (window.confirm("Are you sure you want do delete the marker?")) {
-          var isLocal = obj.data.isLocal;
+        var isLocal = obj.data.isLocal;
+        var shouldDelete = isLocal ? window.confirm("Are you sure you want do delete the marker?") : true;
+
+        if (shouldDelete) {
           var feature = isLocal ? obj.data.marker : pointLocations[obj.data.uuid]['positionFeature'];
-          var pointUuid = isLocal ? feature.get('uuid') : obj.data.uuid;
+          var markerUuid = isLocal ? feature.get('uuid') : obj.data.uuid;
 
           markerLayerSource.removeFeature(feature);
-          delete pointLocations[pointUuid];
+          delete pointLocations[markerUuid];
 
           if (isLocal) {
             var xhr = new XMLHttpRequest();
             // in case GET requests are cached by Heroku, add a ts GET param
-            xhr.open('GET', './point/clear?uuid=' + pointUuid + '&ts='+ Date.now());
+            xhr.open('GET', './point/clear?uuid=' + markerUuid + '&ts='+ Date.now());
             xhr.setRequestHeader('Content-Type', 'application/json');
             xhr.onload = function() {
               if (xhr.status === 200) {
@@ -511,6 +559,7 @@
                 addMarker({
                   data: {
                     isLocal: false,
+                    name: otherPointLocations[otherUuid]['name'],
                     uuid: otherUuid
                   },
                   coordinate: [

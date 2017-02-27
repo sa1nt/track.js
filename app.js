@@ -10,7 +10,7 @@ var http = require('http');
 var app = connect();
 
 var userLocations = {};
-var pointLocations = {};
+var markerLocations = {};
 
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(bodyParser.json());
@@ -78,15 +78,15 @@ app.use('/point/clear', function(request, response){
 		//	will delete all points from memory
 		if (url_parts.query.uuid) {
 			response.write('Deleted point ' + url_parts.query.uuid + '\n');
-			pointLocations[url_parts.query.uuid]['latitude'] = -1;
-			pointLocations[url_parts.query.uuid]['longtitude'] = -1;
-//			delete pointLocations[url_parts.query.uuid];
+			markerLocations[url_parts.query.uuid]['latitude'] = -1;
+			markerLocations[url_parts.query.uuid]['longtitude'] = -1;
+//			delete markerLocations[url_parts.query.uuid];
 		} else {
-			response.write('Deleted all ' + Object.keys(pointLocations).length + '\n');
-			for (var pointUuid in pointLocations) {
-				if (pointLocations.hasOwnProperty(pointUuid)) {
-					pointLocations[pointUuid]['latitude'] = -1;
-					pointLocations[pointUuid]['longtitude'] = -1;
+			response.write('Deleted all ' + Object.keys(markerLocations).length + '\n');
+			for (var pointUuid in markerLocations) {
+				if (markerLocations.hasOwnProperty(pointUuid)) {
+					markerLocations[pointUuid]['latitude'] = -1;
+					markerLocations[pointUuid]['longtitude'] = -1;
 				}
 			}
 		}
@@ -100,15 +100,16 @@ app.use('/point', function(request, response) {
 		response.writeHead(200, {
 			"Content-Type": "application/json"
 		});
-		response.end(JSON.stringify(pointLocations));
+		response.end(JSON.stringify(markerLocations));
 	}
 	if (request.method === "POST") {
 		console.log('POST /point request. Body: ', request.body);
 		if (request.body.uuid && request.body.latitude && request.body.longtitude) {
+			var markerName = request.body.name || '';
 			// if a request contains location info, then update userLocations Map 
-			var pointKey = request.body.uuid;
-			pointLocations[pointKey] = {
-//				'name': request.body.name,
+			var markerKey = request.body.uuid;
+			markerLocations[markerKey] = {
+				'name': markerName,
 				'latitude': request.body.latitude,
 				'longtitude': request.body.longtitude
 			};
