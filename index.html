@@ -49,6 +49,10 @@
         padding: 0.5em;
         display: none;
       }
+      .ol-control button {
+        width: auto;
+        padding: 1px 6px;
+      }
       .tall {
         font-size: large; 
         margin-bottom: 0.5em;
@@ -65,41 +69,66 @@
 
       app.NameForm = function(opt_options) {
         var options = opt_options || {};
+        var this_ = this;
 
-        var nameInputLabel = document.createElement('label');
-        nameInputLabel.setAttribute('for', 'name-input');
-        nameInputLabel.setAttribute('class', 'tall');
-        nameInputLabel.appendChild(document.createTextNode('Name:'));
+        var inputLabel = document.createElement('label');
+        inputLabel.setAttribute('for', 'name-input');
+        inputLabel.setAttribute('class', 'tall');
+        inputLabel.appendChild(document.createTextNode('Name:'));
 
         var nameInput = document.createElement('input');
         nameInput.setAttribute('type', 'text');
         nameInput.setAttribute('id', 'name-input');
         nameInput.setAttribute('class', 'tall');
         nameInput.setAttribute('name', 'user-name');
-        nameInput.setAttribute('placeholder', 'Enter your name');
-        nameInput.setAttribute('autofocus', '');
+        nameInput.setAttribute('placeholder', options['inputPlaceholder']);
+        nameInput.setAttribute('autofocus', 'true');
 
-        var nameFormSubmitButton = document.createElement('button');
-        nameFormSubmitButton.setAttribute('type', 'submit');
-        nameFormSubmitButton.setAttribute('id', 'name-button');
-        nameFormSubmitButton.appendChild(document.createTextNode('OK'));
+        var submitButton = document.createElement('button');
+        submitButton.setAttribute('type', 'submit');
+        submitButton.setAttribute('id', 'name-button');
+        submitButton.setAttribute('class', 'form-button');
+        submitButton.appendChild(document.createTextNode('OK'));
 
         var nameForm = document.createElement('form');
         nameForm.setAttribute('id', 'name-input-form');
         nameForm.setAttribute('class', 'info ol-unselectable ol-control');
 
-        nameForm.appendChild(nameInputLabel);
+        nameForm.appendChild(inputLabel);
         nameForm.appendChild(nameInput);
-        nameForm.appendChild(nameFormSubmitButton);
+        nameForm.appendChild(submitButton);
+
+        if (options.cancelCallback) {
+          var canceButton = document.createElement('button');
+          canceButton.setAttribute('type', 'button');
+          canceButton.setAttribute('id', 'cancel-button');
+          canceButton.setAttribute('class', 'form-button');
+          canceButton.appendChild(document.createTextNode('Cancel'));
+          nameForm.appendChild(canceButton);
+
+          this_.cancelCallback = options.cancelCallback;
+
+          var handleCancel = function(e) {
+            e.preventDefault();
+
+            this_.cancelCallback(this_);
+
+            this_.element.disabled = 'disabled';
+            this_.getMap().removeControl(this_);
+          }
+
+          canceButton.addEventListener('click', handleCancel, false);
+          canceButton.addEventListener('touchstart', handleCancel, false);
+        }
 
         nameForm.style.display = 'block';
 
         document.body.appendChild(nameForm);
 
-        var this_ = this;
         this_.nameInput = nameInput;
-        this_.submitCallback = opt_options.submitCallback;
-        var handleNameSubmit = function (e) {
+        this_.submitCallback = options.submitCallback;
+
+        var handleSubmit = function(e) {
           e.preventDefault();
 
           this_.submitCallback(this_);
@@ -108,7 +137,7 @@
           this_.getMap().removeControl(this_);
         };
 
-        nameForm.addEventListener('submit', handleNameSubmit, {
+        nameForm.addEventListener('submit', handleSubmit, {
           capture: false,
           once: true
         });
@@ -163,6 +192,7 @@
 //        icon: url_marker,
         callback: function(obj) { 
           map.addControl(new app.NameForm({
+            inputPlaceholder: 'Point name',
             submitCallback: function(this_) {
               var markerName = this_.nameInput.value;
               addMarker({
@@ -172,7 +202,9 @@
                 },
                 coordinate: obj.coordinate
               });
-            }
+            },
+            // Cancel button will show up and will just remove the NameForm from the map
+            cancelCallback: function() {}
           }));
         }
       };
@@ -280,6 +312,7 @@
           ownUuid = guid();
           localStorage.setItem('uuid', ownUuid);
           map.addControl(new app.NameForm({
+            inputPlaceholder: 'Enter your name',
             submitCallback: function(this_) {
               var enteredName = this_.nameInput.value;
               localStorage.setItem('name', enteredName);
@@ -289,7 +322,9 @@
                 enableHighAccuracy: true
               });
               geolocation.setTracking(true);
-            }
+            },
+            // Cancel button won't show up
+            cancelCallback: false
           }));
         } else {
           ownUuid = existingUserUuid;
