@@ -457,26 +457,28 @@
         isLocal: boolean - if this call was initiated by current user (true) or by update from server (false)
       */
       function removeMarker(obj) {
-        var isLocal = obj.data.isLocal;
-        var feature = isLocal ? obj.data.marker : pointLocations[obj.data.uuid]['positionFeature'];
-        var pointUuid = isLocal ? feature.get('uuid') : obj.data.uuid;
+        if (window.confirm("Are you sure you want do delete the marker?")) {
+          var isLocal = obj.data.isLocal;
+          var feature = isLocal ? obj.data.marker : pointLocations[obj.data.uuid]['positionFeature'];
+          var pointUuid = isLocal ? feature.get('uuid') : obj.data.uuid;
 
-        markerLayerSource.removeFeature(feature);
-        delete pointLocations[pointUuid];
+          markerLayerSource.removeFeature(feature);
+          delete pointLocations[pointUuid];
 
-        if (isLocal) {
-          var xhr = new XMLHttpRequest();
-          // in case GET requests are cached by Heroku, add a ts GET param
-          xhr.open('GET', './point/clear?uuid=' + pointUuid + '&ts='+ Date.now());
-          xhr.setRequestHeader('Content-Type', 'application/json');
-          xhr.onload = function() {
-            if (xhr.status === 200) {
+          if (isLocal) {
+            var xhr = new XMLHttpRequest();
+            // in case GET requests are cached by Heroku, add a ts GET param
+            xhr.open('GET', './point/clear?uuid=' + pointUuid + '&ts='+ Date.now());
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onload = function() {
+              if (xhr.status === 200) {
 
-            }
-          };
-          xhr.send();
+              }
+            };
+            xhr.send();
+          }
         }
-      };
+      }
 
       function updateMarkers() {
         var xhr = new XMLHttpRequest();
