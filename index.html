@@ -7,7 +7,7 @@
 
     <!-- fix for IE10 on WP8 and W8 -->
     <style type="text/css">
-      @-ms-viewport       { 
+      @-ms-viewport { 
         width: device-width; 
       }
     </style>
@@ -20,6 +20,8 @@
 
     <link href="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.min.css" rel="stylesheet">
     <script src="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.js"></script>
+
+    <script src="https://cdn.jsdelivr.net/clipboard.js/1.6.0/clipboard.min.js"></script>
 
     <style type="text/css">
       html, body {
@@ -184,8 +186,61 @@
       var removeMarkerItem = {
         text: 'Remove this Point',
 //        icon: url_marker,
-        callback: removeMarker
+        callback: removeMarker        
       };
+
+      var copyMarkerCoordsItem = {
+        text: 'Copy Marker coords',
+        classname: 'copy-marker-coords-menu-item',
+        callback: function(obj) {
+          if (document.queryCommandSupported('copy')) {
+            var coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326');
+            var template = '{x} , {y}';
+            var coordString = ol.coordinate.format(coord4326, template, 6);
+
+            var coordSelect = document.createElement('input');
+
+            // Place in top-left corner of screen regardless of scroll position.
+            coordSelect.style.position = 'fixed';
+            coordSelect.style.top = 0;
+            coordSelect.style.left = 0;
+
+            // Ensure it has a small width and height. Setting to 1px / 1em
+            // doesn't work as this gives a negative w/h on some browsers.
+            coordSelect.style.width = '2em';
+            coordSelect.style.height = '2em';
+
+            // We don't need padding, reducing the size if it does flash render.
+            coordSelect.style.padding = 0;
+
+            // Clean up any borders.
+            coordSelect.style.border = 'none';
+            coordSelect.style.outline = 'none';
+            coordSelect.style.boxShadow = 'none';
+
+            // Avoid flash of white box if rendered for any reason.
+            coordSelect.style.background = 'transparent';
+
+            coordSelect.setAttribute('id', 'copy-marker-coords-content');
+            coordSelect.setAttribute('type', 'text');
+
+            coordSelect.value = coordString;
+
+            document.body.appendChild(coordSelect);
+
+            coordSelect.select();
+
+            var copied = document.execCommand('copy');
+            if (copied) { 
+              console.log('Copy operation unsuccesful');
+            }
+
+            document.body.removeChild(coordSelect);
+          } else {
+            alert('Clipboard is not accessible from your device');
+          }
+        }
+      }
 
       var addMarkerItem = {
         text: 'Add a Point',
@@ -246,6 +301,7 @@
             isLocal: true 
           };
           contextmenu.push(removeMarkerItem);
+          contextmenu.push(copyMarkerCoordsItem);
         } else {
           addMarkerItem.data = {
             isLocal: true
@@ -484,7 +540,7 @@
                 image: new ol.style.Icon({ scale: .6, src: url_marker }),
                 text: new ol.style.Text({
                   offsetY: 25,
-                  text: markerName + ' ' + ol.coordinate.format(coord4326, template, 2),
+                  text: markerName, // + ' ' + ol.coordinate.format(coord4326, template, 2),
                   font: '15px Open Sans,sans-serif',
                   fill: new ol.style.Fill({ color: '#111' }),
                   stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
