@@ -13,10 +13,10 @@
     </style>
 
     <title>track.js</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.css" type="text/css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.js" type="text/javascript"></script>
+    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.css" type="text/css">
+    <script src="//cdnjs.cloudflare.com/ajax/libs/openlayers/4.0.1/ol.js" type="text/javascript"></script>
 
-    <script src="https://cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script>
+    <script src="//cdn.polyfill.io/v2/polyfill.min.js?features=requestAnimationFrame,Element.prototype.classList"></script>
 
     <link href="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.min.css" rel="stylesheet">
     <script src="//cdn.jsdelivr.net/openlayers.contextmenu/latest/ol3-contextmenu.js"></script>
@@ -49,9 +49,13 @@
         padding: 0.5em;
         display: none;
       }
-      .ol-control button {
+      .ol-control button.form-button {
         width: auto;
         padding: 1px 6px;
+      }
+      div.ol-control#logout-control {
+        bottom: .5em;
+        left: .5em;
       }
       .tall {
         font-size: large; 
@@ -67,6 +71,42 @@
       window.app = {};
       var app = window.app;
 
+      app.LogoutButton = function(opt_options) {
+        var options = opt_options || {},
+            this_ = this;
+
+        var logoutButton = document.createElement('button');
+        logoutButton.setAttribute('type', 'button');
+        logoutButton.setAttribute('class', 'form-button');
+        logoutButton.appendChild(document.createTextNode('Logout'));
+
+        var logoutDiv = document.createElement('div');
+        logoutDiv.setAttribute('id', 'logout-control');
+        logoutDiv.setAttribute('class', 'ol-unselectable ol-control');
+        logoutDiv.appendChild(logoutButton);
+
+        document.body.appendChild(logoutDiv);
+
+        var hadleLogout = function(e) {
+          e.preventDefault();
+          var confirmed = window.confirm("Are you sure you want to log out?");
+          if (confirmed) {
+            window.location.href = './clear.html';
+          }
+        }
+
+        logoutButton.addEventListener('click', hadleLogout, false);
+        logoutButton.addEventListener('touchstart', hadleLogout, false);
+
+        ol.control.Control.call(this, {
+          element: logoutDiv,
+          target: options.target
+        });
+      }
+
+      ol.inherits(app.LogoutButton, ol.control.Control);
+
+
       app.NameForm = function(opt_options) {
         var options = opt_options || {};
         var this_ = this;
@@ -81,7 +121,7 @@
         nameInput.setAttribute('id', 'name-input');
         nameInput.setAttribute('class', 'tall');
         nameInput.setAttribute('name', 'user-name');
-        nameInput.setAttribute('placeholder', options['inputPlaceholder']);
+        nameInput.setAttribute('placeholder', options.inputPlaceholder);
         nameInput.setAttribute('autofocus', 'true');
 
         var submitButton = document.createElement('button');
@@ -193,7 +233,7 @@
         callback: function(obj) {
           if (document.queryCommandSupported('copy')) {
             var coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326');
-            var template = '{x} , {y}';
+            var template = '{y}, {x}';
             var coordString = ol.coordinate.format(coord4326, template, 6);
 
             var coordSelect = document.createElement('input');
@@ -229,7 +269,7 @@
             coordSelect.select();
 
             var copied = document.execCommand('copy');
-            if (copied) { 
+            if (!copied) { 
               console.log('Copy operation unsuccesful');
             }
 
@@ -274,7 +314,8 @@
 
       var map = new ol.Map({
         controls: ol.control.defaults().extend([
-          contextmenu
+          contextmenu,
+          new app.LogoutButton()
         ]),
         target: 'map',
         layers: [
@@ -533,12 +574,11 @@
         if (!pointLocations[markerUuid]) {
           var url_marker = '//cdn.rawgit.com/jonataswalker/ol3-contextmenu/master/examples/img/pin_drop.png',
               coord4326 = ol.proj.transform(obj.coordinate, 'EPSG:3857', 'EPSG:4326'),
-              template = 'Coordinates: ({x} | {y})',
               iconStyle = new ol.style.Style({
                 image: new ol.style.Icon({ scale: .6, src: url_marker }),
                 text: new ol.style.Text({
                   offsetY: 25,
-                  text: markerName, // + ' ' + ol.coordinate.format(coord4326, template, 2),
+                  text: markerName,
                   font: '15px Open Sans,sans-serif',
                   fill: new ol.style.Fill({ color: '#111' }),
                   stroke: new ol.style.Stroke({ color: '#eee', width: 2 })
